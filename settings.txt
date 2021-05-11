@@ -1,0 +1,17 @@
+The Species       Use for degenerate primers ?
+SpeciesReferance=chicken:
+Species1=Quail:Yes
+Species2=pheasant:Yes
+Species3=goose:Yes
+Species4=Turtle:No
+
+Exclude=alpha 1
+Exclude=COl1A1
+Exclude=col1a1
+Exclude=col1A1
+Exclude=alpha I
+Exclude=alpha-1
+
+Exception=left empty
+
+end

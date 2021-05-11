@@ -1,0 +1,10 @@
+Contained in this folder are as follows :-
+
+UniversalPrimerMaker V1.4 : This is the code for the main program UniversalPrimerMaker
+
+PrimerFormater : This is code for a program that supports UniversalPrimerMaker it converts the primer list obained from primer3 into a format that blast and UniversalPrimerMaker
+can reconise
+
+Program use notes: within this text file are instructions for how to use UniversalPrimerMaker
+
+Settings: Inside this file the settings of UniversalPrimerMaker can be altered . Using the file is explained in the instructions 

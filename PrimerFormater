@@ -1,0 +1,38 @@
+import xlrd
+import os
+import re
+print(os.getcwd())
+
+
+
+#want collumns 0(primer type) and 8 (sequecnes)
+def TestPrimerInfo(filepath):
+    file=open('rawprimers.txt', 'w')
+    loc = (filepath)
+    transTab=str.maketrans('ATGC-N','TACG-N')
+    wb = xlrd.open_workbook(loc)
+    sheet = wb.sheet_by_index(0)
+    row_count = sheet.nrows
+    col_count = sheet.ncols
+    counter=0
+    for cur_col in range(0,row_count):
+        if counter==0:
+            counter+=1            
+        else:           
+            cell=sheet.cell(cur_col,0)
+            cell2=sheet.cell(cur_col,8)            
+            if cell.value == "LEFT_PRIMER":                
+                leftline1=">primer"+str(counter)+"\n"
+                file.write(leftline1)
+                leftline2=cell2.value+"\n"
+                file.write(leftline2)
+                counter+=1
+            elif cell.value =="RIGHT_PRIMER":                
+                rightline1=">primer"+str(counter)+"\n"
+                file.write(rightline1)
+                rightline2=cell2.value[::-1].translate(transTab)+"\n"
+                file.write(rightline2)
+                counter+=1
+path = "primerinformation.xls"
+#for filename in glob.glob(path):
+TestPrimerInfo(path)

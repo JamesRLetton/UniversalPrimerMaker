@@ -1,0 +1,444 @@
+##full program functions
+import re
+import xlrd
+##############################################################################################################################
+def readAlignFile(filename):
+    fileObj=open(filename , 'r')
+    sequences ={}
+    names=[]
+    for line in fileObj:
+        if line.startswith(">"):
+            header = line[1:].rstrip("\n")
+            name = header.split()[0]
+            names.append(name)
+            sequences[name]=''
+        else:
+            sequences[name] += line.rstrip('\n')
+    fileObj.close()
+    return (sequences , names)
+##########################################################################################################################
+def LeftPrimerCounter(filepath):                 
+    loc = (filepath)    
+    wb = xlrd.open_workbook(loc)
+    sheet = wb.sheet_by_index(0)
+    row_count = sheet.nrows    
+    leftcounter=0
+    for cur_col in range(0,row_count):
+        cell=sheet.cell(cur_col,0)        
+        if cell.value=="LEFT_PRIMER":
+            leftcounter+=1
+    return(leftcounter)
+##############################################################################################################################################################################
+def settings(filename):
+
+    file4=open(filename, 'r')
+    Animallist=[]
+    for i in file4:
+        if i.startswith("Species"):
+            Animallist.append(i)
+    file4.close()   
+    file4=open(filename, 'r')
+    Exclusionlist=[]
+    for i in file4:
+        if i.startswith("Exclude"):
+            Exclusionlist.append(i)
+    file4.close()
+    file4=open(filename, 'r')
+    Degenlist=[]
+    for i in file4:
+        if "yes" in i.lower():
+            Degenlist.append(i)
+    file4.close()
+    
+    file4=open(filename, 'r')
+    Exceptionlist=[]
+    for i in file4:
+        if i.startswith("Exception"):            
+            Exceptionlist.append(i)
+    file4.close()
+    return(Animallist,Exclusionlist,Degenlist,Exceptionlist)
+
+##########################################################################################################################################################################################################
+def readBlastFile(filename,filename2):    
+    fileObj=open(filename , 'r')
+    sequences ={}
+    names=[]
+    for line in fileObj:
+        if line.startswith('Query #'):
+            marker= line.index("Query #")
+            marker2=line.index(": p")
+            name=line[marker:marker2]                                 
+            names.append(name)
+            sequences[name]=''
+        elif line.startswith('RID:') or line.startswith('Job Title') or line.startswith('Program') or line.startswith('Database'):
+            pass
+        else:
+            sequences[name] += line.rstrip('\n')
+    fileObj.close()    
+    test1=sequences.get("Query #1")    
+    blastresult={}
+    counter=0
+    for primer in sequences.values():       
+        hitdictionary={}        
+        counter+=1
+        theprimername="primer"+str(counter)        
+        hitname= re.finditer(r">[^|]{0,}Range 1", primer)        
+        valuegroup= re.finditer(r"Range 1[^&]{1,125}", primer)
+        sampleString=""
+        for firstsearch in valuegroup:
+            sample=firstsearch.group(0)
+            sampleString+=sample                    
+        idvalue= re.finditer(r"Identities:[0-9]{1,}/[0-9]{1,}", sampleString)                                            
+        for i,j in zip(hitname,idvalue):            
+            newm1=i.group(0)            
+            newm=j.group(0)
+            marker1=newm.index(":")
+            marker2=newm.index("/")
+            idvalue=newm[marker1+1:marker2]            
+            idpercent=int(idvalue)/int(len((primername.get(theprimername))))                            
+            match="N"                                                                                                   #ADD AN EXCLUSION TO THE EXCLUSION            
+            for m in Exclusionlist:                                                                #Here the exclusion words list is being iterated through to check none are in the match name
+                Exceptionpres="N"
+                for Exception in Exceptionlist:
+                    exEquals=Exception.index("=")
+                    excolon=Exception.index("\n")
+                    trimException=Exception[exEquals+1:excolon]                    
+                    expmatch=re.search(trimException,newm1)                    
+                    if expmatch != None:                        
+                        Exceptionpres="Y"                        
+                    else:
+                        pass                
+                if Exceptionpres =="Y":                    
+                    hitdictionary[newm1]=idpercent                    
+                else:
+                    Equals=m.index("=")
+                    colon=m.index("\n")
+                    m2=m[Equals+1:colon]                    
+                    if match =="N":        
+                        if m2 in newm1:
+                           # if theprimername =="primer1":
+                            #    print(m2)
+                             #   print(newm1 , "Matches NA")
+                              #  print(newm)
+                            hitdictionary["target gene"]="NA"
+                            match="Y"
+                            
+                        else:
+                           # if theprimername =="primer1":
+                               # print(m2)
+                               # print(newm1 , "No Match ")
+                               # print(newm)
+                            match="N"
+                            
+            
+            if match =="N":
+               
+                hitdictionary[newm1]=idpercent
+            elif match =="Y":
+                
+                pass            
+        blastresult[theprimername]=hitdictionary
+        
+        #The followoing is for the human blast
+    fileObj=open(filename2 , 'r')
+    sequences2 ={}
+    names2=[]
+    for line in fileObj:
+        if line.startswith('Query #'):
+            marker3= line.index("Query #")
+            marker4=line.index(": p")
+            name2=line[marker3:marker4]                                 
+            names2.append(name2)
+            sequences2[name2]=''
+        elif line.startswith('RID:') or line.startswith('Job Title') or line.startswith('Program') or line.startswith('Database'):
+            pass
+        else:
+            sequences2[name2] += line.rstrip('\n')
+    fileObj.close()    
+    blastresult2={}
+    counter=0
+    for primer in sequences2.values():
+        hitdictionary2={}
+        if "No significant similarity found" in primer:
+            counter+=1
+            theprimername="primer"+str(counter)
+            hitdictionary2["NoSig"]="NA"
+            blastresult2[theprimername]=hitdictionary2            
+        else:                    
+            counter+=1
+            theprimername="primer"+str(counter)
+            hitname2= re.finditer(r">[^:]+:?[^:]+", primer)
+            idvalue2= re.finditer(r"Identities:[0-9]{1,}/[0-9]{1,}", primer)
+            for i,j in zip(hitname2,idvalue2):
+                newm2=i.group(0)               
+                newm3=j.group(0)               
+                marker1=newm3.index(":")
+                                    
+                marker2=newm3.index("/")
+                
+                idvalue3=newm3[marker1+1:marker2]
+                
+                idpercent=int(idvalue3)/int(len((primername.get(theprimername))))                        
+                hitdictionary2[newm3]=idpercent                       
+            blastresult2[theprimername]=hitdictionary2
+    #print(blastresult.items())        
+    return (blastresult,blastresult2)
+            
+##############################################################################################################################################
+def summaryblast(dictionary,rule):
+    
+    copydict=blastresult
+    fullprimer={}
+    threshold= rule
+    highestvalue= 0
+    counter=0    
+    for k ,l in dictionary.items():
+        highestvalue= 0
+        for o, j in l.items():
+            if j =="NA":
+                pass
+            elif j >= highestvalue:
+                highestvalue=j
+        counter+=1
+        fullprimer[k]=highestvalue
+        
+    return(fullprimer)
+##############################################################################################################################################
+#here the code calculates how similar the primer positions are on each sequence
+
+
+
+#primername = primer dic
+#sequencename = sequence dic
+
+def findsequences(sequences, primername):
+   
+    masterdict={}
+    masterdict2={}
+    for pkey,pvalue in primername:
+        newname=pkey
+        newname2=pkey
+        newname={}
+        newname2={}
+        
+        for l , p in sequences:
+            listtest = []
+            for newseq in pvalue:
+                listtest.append("[-]{0,}")          #This places a wildcard in between each base allowing gaps to be reckonised
+                listtest.append(newseq) 
+            s = ''.join(listtest)                 #So s is the primer seq containing the wild cards            
+            m= re.finditer(s, example1)               #example 1 is the cow sequence should rename it is not clear
+            for i in m:
+                counter=0                             #here it is getting me the position of the primer
+                newm=i.group()               
+                post= i.start()
+                end = i.end()
+                tester=p[post:end]
+                itercounter=0
+                for j in tester:
+                    pos=newm[itercounter]
+                    itercounter+=1
+                    if pos != j:
+                        counter+=1
+                    newname[l]=counter                    
+                newname2[l]=tester
+        masterdict[pkey]=newname
+        masterdict2[pkey]=newname2
+    return(masterdict,masterdict2)
+      
+###########################################################################################################################
+#here it takes the species name and also if a limited number 
+        
+def makedegenprimer(primerlist):    
+    counter1=0
+    for i , j in primerlist.items():                             #add function to add names automatically        
+        degprimer=""
+        cowseq=cowlist[counter1]
+        counter=0               
+        counter1+=1
+        basecounter=0
+        for bases in cowseq:           
+            match="Y"
+            for o , l in j.items():
+                if match=="Y": 
+                    for degenspecies in Degenlist:                                                                                                    #sets list of animals to pull for each primer
+                        if "yes" in degenspecies.lower():
+                            Equals=degenspecies.index("=")
+                            colon=degenspecies.index(":")
+                            trimdegenspecies=degenspecies[Equals+1:colon].lower()
+                            degbase=""
+                            if trimdegenspecies in o.lower():                                               
+                                if (j.get(o))[basecounter]== bases:   
+                                    degbase=cowseq[basecounter]                                               
+                                    match="Y"                                    
+                                else:
+                                   
+                                    if j.get(o)[basecounter] =="-":
+                                        degbase="GAP"
+                                        match="N"
+                                    elif degbase != "GAP":
+                                        degbase="N"                                   
+                                                                           
+            degprimer+=degbase
+            basecounter+=1
+        j["Degenprimer"]=degprimer
+##############################################################################################################################
+def ImportPrimerInfo(filepath):
+
+    loc = (filepath) 
+    wb = xlrd.open_workbook(loc)
+    sheet = wb.sheet_by_index(0)
+
+    primeattributesdict={}
+    counter5=0
+    fakelist2=sheet.row_values(0)
+    blastlist=[]
+    humanblastlist=[]
+    for value in fullprimer.values():
+        blastlist.append(value)
+    for value2 in fullprimer2.values():
+        humanblastlist.append(value2)
+    for p in primername.keys():
+        attributesdict={}
+        primeattributesdict[p]=""
+        counter5+=1
+        counter6=0
+        for i in fakelist2:            
+            attributesdict["blastresult"]=blastlist[counter5-1]
+            attributesdict["Humanblastresult"]=humanblastlist[counter5-1]
+            fakelist=sheet.row_values(counter5)
+            attributesdict[i]=fakelist[counter6]                       #this one gets all the column
+            primeattributesdict[p]=attributesdict
+            if counter6 <len(fullprimer):                                 
+                counter6+=1
+    return(primeattributesdict,attributesdict)
+############################################################################################################################################################
+#here gain is where species names are and limited number 
+def exportprimerinfo(primerfile,similarityfile):
+    transTab=str.maketrans('ATGC-N','TACG-N')     
+    file3=open(similarityfile, 'w')    
+   
+    string1=""
+    file3.write("PrimerName ")
+    for a in attributesdict.keys():        
+        file3.write(a)
+        file3.write(" ")    
+    for finalanimal in Animallist:
+        Equals=finalanimal.index("=")
+        colon=finalanimal.index(":")        
+        header=finalanimal[Equals+1:colon]+" "
+        file3.write(header)
+    file3.write("DegeneratePrimer ")
+    file3.write("Primer_Usable")
+    file3.write("\n")    
+    counter=0
+    for i,j in testid.items():
+        ruleslist=[]
+        counter+=1
+        primer="primer"+str(counter)
+        file3.write(primer)
+        file3.write(" ")
+        currentdic=primeattributesdict.get(primer)
+        for attributes in currentdic.values():            
+            ruleslist.append(attributes)
+            file3.write(str(attributes))
+            file3.write(" ")                       
+        for species in Animallist:
+            for simkey ,simvalue in j.items():            
+                Equals=species.index("=")                
+                colon=species.index(":")
+                trimspecies=species[Equals+1:colon]               
+                if trimspecies.lower() in simkey.lower():                   
+                    file3.write(str(simvalue))
+                    animalvalue=trimspecies+":"+str(simvalue)
+                    ruleslist.append(animalvalue)
+                    file3.write(" ")        
+        primer="primer"+str(counter)        
+        theprimer=testid2.get(primer)        
+        thedegenprimer=theprimer.get("Degenprimer")
+        if counter <int(LeftPrimers):                                                      # needs automating 
+            file3.write(thedegenprimer)
+            file3.write(" ")
+            ruleslist.append(thedegenprimer)
+            
+        else:            
+            file3.write(thedegenprimer[::-1].translate(transTab))
+            file3.write(" ")
+            ruleslist.append(thedegenprimer)                    
+        Ncounter=0
+        for Letter in thedegenprimer:
+            if Letter =="N":
+                Ncounter+=1        
+        if ruleslist[0]<= 0.5 and ruleslist[1]<=0.5 and ruleslist[6] >=45 and ruleslist[6] <= 55 and ruleslist[9]==0 and Ncounter <=2:            
+            file3.write("Yes")
+            file3.write("\n")
+        elif ruleslist[0]<= 0.62  and ruleslist[6] >=40 and ruleslist[6] <= 60 and ruleslist[9]<=70 and Ncounter <=4:
+            file3.write("conditionally")
+            file3.write("\n")            
+        else:
+            file3.write("No")           
+            file3.write("\n")
+    file3.close()
+
+    
+######################################################################################################################################################################################
+
+
+
+
+#readAlign reads in the primer and alignment informations into dictionairys
+#Old names ,'AMELX raw primers hairpinsprocesed.txt' , 'coys alinment.fasta'
+(primername, primeseq) = readAlignFile('rawprimers.txt')
+
+(sequencename,genomedeq ) = readAlignFile('alignment.fasta')
+
+#Loads in information contained inside settings file 
+(Animallist, Exclusionlist,Degenlist,Exceptionlist)=settings("settings.txt")
+#animal="cow"
+#Animal="Cow"
+for refanimal in Animallist:
+    if refanimal.startswith("SpeciesReferance"):
+        refEquals=refanimal.index("=")
+        refcolon=refanimal.index(":")
+        animal=refanimal[refEquals+1:refcolon]        
+        for i in sequencename.keys():            
+            if animal.lower() in i.lower() :                
+                refkey=i
+                example1=sequencename.get(i)
+
+# Just counts how amny left primers there are being used as  is important for getting the reverse compliment of the correct primers within the code
+path = "primerinformation.xls"
+LeftPrimers=LeftPrimerCounter(path)
+
+#Read blast reads in all the blast information
+##If a new gene is used new word need to be used to exclue the main sequence(add into code option to add words?)
+#'AMELX blast results hairpins.txt'
+(blastresult,blastresult2)=readBlastFile('blastresults.txt','humanblast.txt')
+#summaryblast filters out the primers that have high homology to other genes (current not filtering as find the information usedful)
+fullprimer=summaryblast(blastresult,1.0)
+fullprimer2=summaryblast(blastresult2,1.0)
+
+#findsequences compares the similarity of the cow based primers to the other paralogues
+(testid,testid2)=findsequences(sequencename.items(),primername.items())
+
+#makedegenprimer produces degenerate primers 
+goatlist=[]
+sheeplist=[]                                     #get rid of as is clutter
+cowlist=[]
+Masterlist=[]
+for j in testid2.values():    
+    for k in j.keys():        
+        if "Yak" in k or "yak" in k:           
+            goatlist.append(j.get(k))
+        elif "Sheep" in k or "sheep" in k:              # iterate through the degen list and then may need to have a list with the lists
+            sheeplist.append(j.get(k))            
+        elif k == refkey:
+            cowlist.append(j.get(refkey))      
+                  
+
+makedegenprimer(testid2)
+#ImportPrimerInfo reads in all the primer3inforamtions this is clucky so may do ealier as is touch redudant also primer3 has a python package that might eliminate this
+#AMELX primer information hairpins.xlsx
+(primeattributesdict,attributesdict)=ImportPrimerInfo('primerinformation.xls')
+#exportprimerinfo exports the informations to two seperate files. Think would be better as one file ,aslo would be better exported straight to excel
+exportprimerinfo('PrimerGeneralinformation.txt','SequenceSimilarityInformation.txt')
